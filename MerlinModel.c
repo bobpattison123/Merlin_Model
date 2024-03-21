@@ -26,8 +26,6 @@ struct MerlinMachine *CreateMerlinMachine(int number_of_features, int number_of_
     mm->literal_outputs = (unsigned int *)malloc(sizeof(unsigned int) * number_of_features * number_of_patches);
     mm->feedback_to_la = (unsigned int *)malloc(sizeof(unsigned int) * number_of_ta_chunks);
     mm->literal_weights = (unsigned int *)malloc(sizeof(unsigned int) * number_of_features);
-    mm->output_one_patches = (int *)malloc(sizeof(int) * number_of_patches);  /* THIS IS USED FOR DECIDING WHICH STATES GET INCREMENTED*/
-    mm->literal_patch = (unsigned int*)malloc(sizeof(unsigned int*) * number_of_features);
 
     if (((number_of_features) % 32) != 0) {
 		mm->filter  = (~(0xffffffff << ((number_of_features) % 32)));
@@ -158,7 +156,7 @@ static inline void mm_calculate_literal_output(struct MerlinMachine *mm, unsigne
         // Finding what the action of the TA is
         int action = mm_ta_action(mm, feature);
 
-        // Goes through all patches and finds what the
+        // Goes through all patches and gets the output from that TA
         for (int patch = 0; patch < mm->number_of_patches; ++patch) {
             mm->literal_outputs[patch*mm->number_of_features + feature] = (action & Xi[patch*mm->number_of_features + feature]);
         }
@@ -170,6 +168,18 @@ static inline void mm_calculate_literal_output(struct MerlinMachine *mm, unsigne
 /*
 void mm_update_literals(struct MerlinMachine *mm, unsigned int *Xi, int class_sum, int target) {
     unsigned int *ta_state = mm->ta_state;
+
+    /* Bob: I need to introduce some way to randomly select which literals will receieve feedback but for now I will
+            leave it alone to work on the logic of the feedback.
+    
+    for (int literal = 0; literal < mm->number_of_features; literal++) {
+        unsigned int ta_chunk = literal / 32;
+        unigned int ta_chunk_pos = literal % 32;
+
+        omp_set_lock(&mm->literal_lock[literal]);
+
+        
+    }
 
 
 }

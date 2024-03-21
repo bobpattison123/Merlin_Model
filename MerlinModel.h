@@ -12,9 +12,6 @@ struct MerlinMachine {
     unsigned int *ta_state;
     unsigned int *literal_outputs;
     unsigned int *feedback_to_la;
-    unsigned int *literal_patch;
-    
-    int *output_one_patches;
 
     unsigned int *literal_weights;
 
