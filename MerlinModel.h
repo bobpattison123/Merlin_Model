@@ -33,3 +33,7 @@ struct MerlinMachine *CreateMerlinMachine(int number_of_features, int number_of_
 void mm_initialize(struct MerlinMachine *mm);
 
 int mm_ta_state(struct MerlinMachine *mm, int ta);
+
+int mm_ta_action(struct MerlinMachine *mm, int ta);
+
+void mm_update_literals(struct MerlinMachine *mm, unsigned int *Xi, int class_sum, int target);

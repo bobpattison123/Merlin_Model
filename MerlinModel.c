@@ -23,7 +23,7 @@ struct MerlinMachine *CreateMerlinMachine(int number_of_features, int number_of_
     mm->s = s;
 
     mm->ta_state = (unsigned int *)malloc(sizeof(unsigned int) * number_of_ta_chunks * number_of_state_bits);
-    mm->literal_outputs = (unsigned int *)malloc(sizeof(unsigned int) * number_of_ta_chunks);
+    mm->literal_outputs = (unsigned int *)malloc(sizeof(unsigned int) * number_of_features * number_of_patches);
     mm->feedback_to_la = (unsigned int *)malloc(sizeof(unsigned int) * number_of_ta_chunks);
     mm->literal_weights = (unsigned int *)malloc(sizeof(unsigned int) * number_of_features);
     mm->output_one_patches = (int *)malloc(sizeof(int) * number_of_patches);  /* THIS IS USED FOR DECIDING WHICH STATES GET INCREMENTED*/
@@ -60,7 +60,6 @@ void mm_initialize(struct MerlinMachine *mm) {
         mm->literal_weights[literal] = 1;
     }
 }
-
 
 
 /* Increments TA state */
@@ -141,66 +140,41 @@ static inline int sum_up_class_votes(struct MerlinMachine *mm) {
 
     // Adds up output from each literal given the literal weight
     for (int literals = 0; literals < mm->number_of_features; literals++) {
-        int ta_chunk = literals / 32;
-        int ta_chunk_pos = literals % 32;
-
-        class_sum += mm->literal_weights[literals] * ((mm->literal_outputs[ta_chunk] & (1 << ta_chunk_pos)) > 0);
+        class_sum += mm->literal_weights[literals] * mm->literal_outputs[literals];
     }
 
     class_sum = (class_sum > (mm->T)) ? (mm->T) : class_sum;
 	class_sum = (class_sum < -(mm->T)) ? -(mm->T) : class_sum;
 
-    return class_sum;
+    return class_sum; 
 }
 
 static inline void mm_calculate_literal_output(struct MerlinMachine *mm, unsigned int *Xi, int predict) {
 
-    // Number of patches that have an output of 1
-    int output_one_patches_count = 0;
-
-    int output = 0;
-
     unsigned int *ta_state = mm->ta_state;
 
-    // Filling output array with zeros
-    for (int lit = 0; lit < mm->number_of_features; lit++) {
-        mm->literal_outputs[lit] = 0;
-    }
+    // Looping through every TA
+    for (int feature = 0; feature < mm->number_of_features; feature ++) {
+        // Finding what the action of the TA is
+        int action = mm_ta_action(mm, feature);
 
-    for (int patch = 0; patch < mm->number_of_patches; ++patch) {
-        for(int chunk = 0; chunk < mm->number_of_ta_chunks-1; chunk++) {
-            unsigned int pos_in_chunk = chunk*mm->number_of_state_bits + mm->number_of_state_bits-1;
-            output = (ta_state[pos_in_chunk] & Xi[patch*mm->number_of_ta_chunks + chunk]) == ta_state[pos_in_chunk];
-
-            if (output) {
-                
-            }
-
+        // Goes through all patches and finds what the
+        for (int patch = 0; patch < mm->number_of_patches; ++patch) {
+            mm->literal_outputs[patch*mm->number_of_features + feature] = (action & Xi[patch*mm->number_of_features + feature]);
         }
-
-        unsigned int pos_last_chunk = (mm->number_of_ta_chunks-1)*mm->number_of_state_bits + mm->number_of_state_bits-1;
-        output = (ta_state[pos_last_chunk] & Xi[patch*mm->number_of_ta_chunks + mm->number_of_ta_chunks - 1] & mm->filter) ==
-            (ta_state[pos_last_chunk] & mm->filter);
-
-        output = output && !(predict == PREDICT);
-
-        if (output) {
-            mm->output_one_patches[output_one_patches_count] = patch;
-            output_one_patches_count++;
-        }
-
     }
-
-    if (output_one_patches_count > 0) {
-        unsigned int clause_chunk = j / 32;
-        unsigned int clause_chunk_pos = j % 32;
-
-        tm->clause_output[clause_chunk] |= (1 << clause_chunk_pos);
-
-        int patch_id = fast_rand() % output_one_patches_count;
-        tm->clause_patch[j] = tm->output_one_patches[patch_id];
- 	}
 }
+
+
+/* WIP */
+/*
+void mm_update_literals(struct MerlinMachine *mm, unsigned int *Xi, int class_sum, int target) {
+    unsigned int *ta_state = mm->ta_state;
+
+
+}
+*/
+
 
 
 
@@ -225,5 +199,15 @@ int mm_ta_state(struct MerlinMachine *mm, int ta) {
     }
 
     return state;
+}
+
+int mm_ta_action(struct MerlinMachine *mm, int ta)
+{
+	int ta_chunk = ta / 32;
+	int chunk_pos = ta % 32;
+
+	unsigned int pos = ta_chunk * mm->number_of_state_bits + mm->number_of_state_bits-1;
+
+	return (mm->ta_state[pos] & (1 << chunk_pos)) > 0;
 }
 
